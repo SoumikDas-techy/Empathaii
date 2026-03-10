@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { PlusIcon, TrashIcon, PencilIcon, ChevronDownIcon, ChevronRightIcon, FolderIcon, FolderPlusIcon } from '@heroicons/react/24/outline'
 
 export default function AssessmentManagement() {
@@ -28,14 +28,22 @@ export default function AssessmentManagement() {
         { id: 'Class 8th', name: 'Class 8th Standard', color: 'green', isDefault: true },
         { id: 'Class 9th', name: 'Class 9th Standard', color: 'blue', isDefault: true },
         { id: 'Class 10th', name: 'Class 10th Standard', color: 'indigo', isDefault: true },
+        
+        
     ])
-
+    const [studentResponses, setStudentResponses] = useState([])
+    const [selectedResponse, setSelectedResponse] = useState(null)
+    const [showResponseSheet, setShowResponseSheet] = useState(false)
+    const [isResponseModalOpen, setIsResponseModalOpen] = useState(false) 
     const [selectedGroup, setSelectedGroup] = useState(null)
     const [expandedQuestion, setExpandedQuestion] = useState(null)
     const [isQuestionModalOpen, setIsQuestionModalOpen] = useState(false)
     const [isGroupModalOpen, setIsGroupModalOpen] = useState(false)
     const [editingQuestion, setEditingQuestion] = useState(null)
     const [searchTerm, setSearchTerm] = useState('')
+    const [filterAge, setFilterAge] = useState('')
+    const [filterClass, setFilterClass] = useState('')
+    const [filterGender, setFilterGender] = useState('')
 
     const [questionFormData, setQuestionFormData] = useState({
         text: '',
@@ -43,13 +51,48 @@ export default function AssessmentManagement() {
         option2: '',
         option3: '',
         option4: '',
-        groups: []
+        groups: [],
+        
     })
 
     const [groupFormData, setGroupFormData] = useState({
         name: '',
         color: 'purple'
     })
+ 
+
+//TEST PURPOSES - REMOVE LATER
+useEffect(() => {
+    setStudentResponses([
+        { studentId: '1', groupId: 'Class 8th', emotion: 'positive' },
+        { studentId: '2', groupId: 'Class 8th', emotion: 'positive' },
+        { studentId: '3', groupId: 'Class 8th', emotion: 'positive' },
+        { studentId: '4', groupId: 'Class 8th', emotion: 'negative' },
+        { studentId: '1', groupId: 'Class 9th', emotion: 'positive' },
+        { studentId: '2', groupId: 'Class 9th', emotion: 'neutral' },
+        { studentId: '3', groupId: 'Class 9th', emotion: 'neutral' },
+        { studentId: '4', groupId: 'Class 9th', emotion: 'negative' },
+
+
+        { studentId: '1', name: 'Rahul', age: 14, className: 'Class 9th', sex: 'Male', questionId: 1, answer: 'Very Happy 😊' },
+        { studentId: '2', name: 'Ananya', age: 13, className: 'Class 9th', sex: 'Female', questionId: 1, answer: 'Sad 😢' },
+        { studentId: '7', name: 'Ritu', age: 14, className: 'Class 8th', sex: 'Female', questionId: 3, answer: 'Very Confident 💪' },
+        { studentId: '4', name: 'Anay', age: 13, className: 'Class 8th', sex: 'Male', questionId: 2, answer: 'Not Great 😪' },
+        { studentId: '5', name: 'Raj', age: 14, className: 'Class 8th', sex: 'Male', questionId: 1, answer: 'Very Happy 😊' },
+        { studentId: '5', name: 'Raj', age: 14, className: 'Class 8th', sex: 'Male', questionId: 1, answer: 'Sad 😢' },
+        { studentId: '6', name: 'Rahul', age: 14, className: 'Class 9th', sex: 'Male', questionId: 2, answer: 'Good 😌' },
+        { studentId: '8', name: 'Ritu', age: 14, className: 'Daily Check-in', sex: 'Female', questionId: 3, answer: 'Very Confident 💪' },
+    
+    
+
+
+
+
+
+        
+    ])
+}, [])
+
 
     const colorOptions = [
         { value: 'purple', label: 'Purple', class: 'bg-purple-500' },
@@ -59,7 +102,7 @@ export default function AssessmentManagement() {
         { value: 'red', label: 'Red', class: 'bg-red-500' },
         { value: 'pink', label: 'Pink', class: 'bg-pink-500' },
         { value: 'indigo', label: 'Indigo', class: 'bg-indigo-500' },
-        { value: 'orange', label: 'Orange', class: 'bg-orange-500' },
+        { value: 'yellow', label: 'Orange', class: 'bg-orange-500' },
     ]
 
     const getColorClasses = (color) => {
@@ -75,6 +118,29 @@ export default function AssessmentManagement() {
         }
         return colorMap[color] || colorMap.purple
     }
+
+
+
+    const detectEmotion = (optionText) => {
+    const text = optionText.toLowerCase()
+
+    if (
+        text.includes('very happy') ||
+        text.includes('happy') ||
+        text.includes('confident') ||
+        text.includes('very well')
+    ) return 'positive'
+
+    if (
+        text.includes('okay') ||
+        text.includes('somewhat') ||
+        text.includes('neutral')
+    ) return 'neutral'
+
+    return 'negative'
+}    
+
+
 
     const handleOpenQuestionModal = (question = null) => {
         if (question) {
@@ -126,12 +192,13 @@ export default function AssessmentManagement() {
                     : q
             ))
         } else {
-            const newQuestion = {
-                id: Date.now(),
-                text: questionFormData.text,
-                options,
-                groups: questionFormData.groups
-            }
+const newQuestion = {
+    id: Date.now(),
+    text: questionFormData.text,
+    options,
+    groups: questionFormData.groups,
+    
+}
             setQuestions([...questions, newQuestion])
         }
         setIsQuestionModalOpen(false)
@@ -184,6 +251,35 @@ export default function AssessmentManagement() {
         setExpandedQuestion(expandedQuestion === id ? null : id)
     }
 
+const handleOptionClick = (question, option) => {
+    const emotion = detectEmotion(option)
+
+    const newResponse = {
+        studentId: 'currentStudent',
+        groupId: selectedGroup,
+        questionId: question.id,
+        emotion,
+        answer: option,
+        date: new Date().toISOString()
+    }
+
+    setStudentResponses(prev => {
+        // Remove previous answer of same student for same question
+        const filtered = prev.filter(
+            r =>
+                !(
+                    r.studentId === 'currentStudent' &&
+                    r.questionId === question.id
+                )
+        )
+
+        // Add latest answer
+        return [...filtered, newResponse]
+    })
+
+    setSelectedResponse(newResponse)
+    setIsResponseModalOpen(true)
+}
     const getGroupQuestions = (groupId) => {
         return questions.filter(q => q.groups.includes(groupId))
     }
@@ -196,6 +292,86 @@ export default function AssessmentManagement() {
         if (!searchTerm) return true
         return q.text.toLowerCase().includes(searchTerm.toLowerCase())
     })
+
+
+
+
+const isDailyCheckinSelected =
+    selectedGroup === 'Daily Check-in'
+
+const isStudentResponsesSelected =
+    selectedGroup === 'Student Responses'
+const isMainPage = !selectedGroup
+
+
+
+// Total responses (all groups)
+const totalAllResponses = studentResponses.length
+
+// Total negative responses (all groups)
+const totalNegativeResponses = studentResponses.filter(
+    r => r.emotion === 'negative'
+).length
+
+// Last added question
+const lastQuestion =
+    questions.length > 0 ? questions[questions.length - 1] : null
+
+
+
+const getOptionCount = (questionId, option) => {
+    return studentResponses.filter(
+        response =>
+            response.questionId === questionId &&
+            response.answer === option
+    ).length
+}
+
+
+
+const getQuestionLabel = (questionId) => {
+    const index = questions.findIndex(q => q.id === questionId)
+    return index !== -1 ? `Q${index + 1}` : "-"
+}
+
+// Get unique students
+const uniqueStudents = Array.from(
+    new Map(
+        studentResponses
+            .filter(r => r.questionId)
+            .map(r => [r.studentId, r])
+    ).values()
+)
+// Filter students based on admin filters
+const filteredStudents = uniqueStudents.filter(student => {
+    const matchesAge = filterAge ? student.age == filterAge : true
+    const matchesClass = filterClass ? student.className.toLowerCase().includes(filterClass.toLowerCase()) : true
+    const matchesGender = filterGender ? student.sex.toLowerCase().startsWith(filterGender.toLowerCase()) : true
+    return matchesAge && matchesClass && matchesGender
+})
+const classStudents = filteredStudents.filter(
+student => student.className === selectedGroup
+)
+{/*Reponse full*/}
+const getStudentAnswer = (studentId, questionId) => {
+    const response = studentResponses.find(
+        r => r.studentId === studentId && r.questionId === questionId
+    )
+
+    if (!response) return "-"
+
+    const question = questions.find(q => q.id === questionId)
+    if (!question) return "-"
+
+    const optionIndex = question.options.indexOf(response.answer)
+
+    if (optionIndex === -1) return "-"
+
+    const letter = String.fromCharCode(65 + optionIndex) 
+    const fullAnswer = question.options[optionIndex]
+
+    return `${letter} - ${fullAnswer}`
+}
 
     return (
         <div>
@@ -211,6 +387,14 @@ export default function AssessmentManagement() {
                         </p>
                     </div>
                     <div className="flex gap-2">
+                        <select
+    className="border border-gray-300 rounded-md shadow-sm text-sm font-medium px-3 py-2 text-sm focus:ring-purple-500 focus:border-purple-500"
+>
+    <option>Today</option>
+    <option>This Week</option>
+    <option>This Month</option>
+</select>
+
                         <button
                             onClick={() => handleOpenQuestionModal()}
                             className="flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500"
@@ -228,7 +412,7 @@ export default function AssessmentManagement() {
                     </div>
                 </div>
             </div>
-
+            
             {/* Groups Grid */}
             <div className="mb-8">
                 <h4 className="text-sm font-semibold text-gray-700 uppercase mb-3">Question Groups</h4>
@@ -241,7 +425,11 @@ export default function AssessmentManagement() {
                         return (
                             <div
                                 key={group.id}
-                                onClick={() => setSelectedGroup(group.id)}
+                                onClick={() => {
+setSelectedGroup(group.id)
+setExpandedQuestion(null)
+setShowResponseSheet(false)
+}}
                                 className={`
                   relative p-4 rounded-lg border-2 cursor-pointer transition-all
                   ${isSelected
@@ -271,8 +459,12 @@ export default function AssessmentManagement() {
                                 </div>
                                 <div className="flex items-center justify-between">
                                     <span className="text-xs text-gray-500">
-                                        {questionCount} {questionCount === 1 ? 'question' : 'questions'}
-                                    </span>
+                                       {group.id !== 'Student Responses' && (
+    <>
+      {questionCount} {questionCount === 1 ? 'question' : 'questions'}
+    </>
+  )}
+</span>
                                     {isSelected && (
                                         <span className={`text-xs font-semibold ${colors.text}`}>Selected</span>
                                     )}
@@ -284,13 +476,23 @@ export default function AssessmentManagement() {
             </div>
 
             {/* Questions Section */}
-            {selectedGroup && (
+            {selectedGroup && !isStudentResponsesSelected &&(
                 <div>
-                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
-                        <h4 className="text-sm font-semibold text-gray-700 uppercase">
-                            Questions in {groups.find(g => g.id === selectedGroup)?.name}
-                        </h4>
-                    </div>
+ <div className="flex items-center justify-between mb-6 pb-3 border-b border-gray-200">
+
+<h4 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">
+Questions in {groups.find(g => g.id === selectedGroup)?.name}
+</h4>
+
+<button
+onClick={() => setShowResponseSheet(true)}
+className="flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500"
+>
+View Responses
+</button>
+
+</div>
+                   
 
                     {/* Search Bar */}
                     <div className="mb-4">
@@ -363,14 +565,28 @@ export default function AssessmentManagement() {
                                             <div className="mt-4 pl-8 pt-3 border-t border-gray-100">
                                                 <p className="text-xs font-semibold text-gray-500 uppercase mb-2">Answer Options:</p>
                                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                                                    {question.options.map((option, idx) => (
-                                                        <div key={idx} className="flex items-center p-2 bg-purple-50 rounded-md">
-                                                            <span className="flex-shrink-0 w-6 h-6 flex items-center justify-center bg-purple-200 text-purple-700 rounded-full text-xs font-bold mr-2">
-                                                                {idx + 1}
-                                                            </span>
-                                                            <span className="text-sm text-gray-700">{option}</span>
-                                                        </div>
-                                                    ))}
+                                                   {question.options.map((option, idx) => (
+    <div key={idx} className="flex flex-col">
+
+        <div
+            onClick={() => handleOptionClick(question, option)}
+            className="flex items-center p-2 bg-purple-50 rounded-md cursor-pointer hover:bg-purple-100 transition"
+        >
+            <span className="flex-shrink-0 w-6 h-6 flex items-center justify-center bg-purple-200 text-purple-700 rounded-full text-xs font-bold mr-2">
+                {idx + 1}
+            </span>
+            <span className="text-sm text-gray-700">{option}</span>
+        </div>
+
+        {/*  Student Count */}
+        <span className="text-xs text-gray-500 ml-8 mt-1">
+            {getOptionCount(question.id, option)} students selected this
+        </span>
+
+    </div>
+))}
+
+
                                                 </div>
                                             </div>
                                         )}
@@ -487,6 +703,201 @@ export default function AssessmentManagement() {
                 </div>
             )}
 
+
+{/* Response Sheet */}
+{showResponseSheet && (
+<div className="mt-8 bg-white border border-gray-200 rounded-lg shadow-sm p-4">
+
+<div className="flex justify-between items-center mb-4">
+<h4 className="text-sm font-semibold text-gray-700 uppercase">
+Student Responses - {selectedGroup}
+</h4>
+<button
+onClick={() => setShowResponseSheet(false)}
+className="flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500"
+>
+✕ Close
+</button>
+
+</div>
+
+
+{/* Gender Filter */}
+  <div className="flex-1  mb-6">
+    <label className="text-xs font-semibold text-gray-600 mb-1 block">Gender</label>
+    <div className="flex flex-wrap gap-2">
+      {filterGender ? (
+        <span className="flex items-center gap-1 bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm">
+          Gender: {filterGender.charAt(0).toUpperCase() + filterGender.slice(1)} 
+          <button
+            className="ml-1 text-blue-600 font-bold"
+            onClick={() => setFilterGender('')}
+          >×</button>
+        </span>
+      ) : null}
+     <div className="flex-1">
+ 
+
+  <div className="flex items-center gap-3">
+
+    {/* Male Button */}
+    <button
+      onClick={() =>
+        setFilterGender(filterGender === 'male' ? '' : 'male')
+      }
+      className={`
+        px-4 py-2 rounded-full text-sm font-medium transition-all duration-200
+        border
+        ${filterGender === 'male'
+          ? 'bg-blue-500 text-white border-blue-500 shadow-md scale-105'
+          : 'bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100'}
+      `}
+    >
+      ♂ Male
+    </button>
+
+    {/* Female Button */}
+    <button
+      onClick={() =>
+        setFilterGender(filterGender === 'female' ? '' : 'female')
+      }
+      className={`
+        px-4 py-2 rounded-full text-sm font-medium transition-all duration-200
+        border
+        ${filterGender === 'female'
+          ? 'bg-pink-500 text-white border-pink-500 shadow-md scale-105'
+          : 'bg-pink-50 text-pink-700 border-pink-200 hover:bg-pink-100'}
+      `}
+    >
+      ♀ Female
+    </button>
+
+    {/* Reset Button (Optional Small One) */}
+    {filterGender && (
+      <button
+  onClick={() => {
+    setFilterAge('')
+    setFilterClass('')
+    setFilterGender('')
+  }}
+  className="px-4 py-2 text-sm font-medium text-gray-600 bg-gray-100 rounded-lg border border-gray-200 hover:bg-red-50 hover:text-red-600 hover:border-red-200 transition-all duration-200"
+>
+  Clear Filters
+</button>
+    )}
+
+  </div>
+    </div>
+  </div>
+
+
+
+
+</div>
+
+{/* Excel Table */}
+<div className="overflow-x-auto mt-4">
+<table className="min-w-full border border-gray-300 text-gray-800">
+
+<thead className="bg-gray-200 text-sm font-semibold sticky top-0">
+
+<tr>
+<th className="border px-4 py-2 text-left">Questions</th>
+
+{classStudents.map((student, index) => (
+<th key={student.studentId} className="border px-4 py-2">
+R{index + 1}
+</th>
+))}
+
+</tr>
+
+</thead>
+
+<tbody className="text-sm">
+
+{/* Age */}
+{selectedGroup === 'Daily Check-in' && (
+<tr>
+<td className="border px-4 py-2 font-medium">Age</td>
+
+{classStudents.map(student => (
+<td key={student.studentId} className="border px-4 py-2">
+{student.age}
+</td>
+))}
+
+</tr>
+)}
+{/* Class */}
+{selectedGroup === 'Daily Check-in' && (
+<tr>
+<td className="border px-4 py-2 font-medium">Class</td>
+
+{classStudents.map(student => (
+<td key={student.studentId} className="border px-4 py-2">
+{student.className}
+</td>
+))}
+
+</tr>
+)}
+
+{/* Name */}
+<tr>
+<td className="border px-4 py-2 font-medium">Name</td>
+{classStudents.map(student => (
+<td key={student.studentId} className="border px-4 py-2">
+{student.name}
+</td>
+))}
+</tr>
+
+{/* Gender */}
+<tr>
+<td className="border px-4 py-2 font-medium">Gender</td>
+{classStudents.map(student => (
+<td key={student.studentId} className="border px-4 py-2">
+{student.sex}
+</td>
+))}
+</tr>
+
+{/* Questions */}
+{questions
+.filter(q => q.groups.includes(selectedGroup))
+.map((question, qIndex) => (
+
+<tr key={question.id}>
+
+<td className="border px-4 py-2 font-medium">
+{qIndex + 1}. {question.text}
+</td>
+
+{classStudents.map(student => (
+
+<td key={student.studentId} className="border px-4 py-2 text-center">
+
+{getStudentAnswer(student.studentId, question.id)}
+
+</td>
+
+))}
+
+</tr>
+
+))}
+
+</tbody>
+
+</table>
+
+</div>
+
+</div>
+)}
+
+
             {/* Create Group Modal */}
             {isGroupModalOpen && (
                 <div className="fixed inset-0 z-50 overflow-y-auto" aria-labelledby="group-modal-title" role="dialog" aria-modal="true">
@@ -554,11 +965,93 @@ export default function AssessmentManagement() {
                                 >
                                     Cancel
                                 </button>
-                            </div>
+                            </div>     
                         </div>
                     </div>
                 </div>
             )}
+            
+
+
+{/* Activity & Alerts Panel */}
+{isDailyCheckinSelected && (
+  <div className="mt-12 grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+        <div className="bg-white p-4 rounded-lg shadow-sm">
+            <h4 className="text-sm font-semibold text-gray-700 mb-3">
+                Recent Activity
+            </h4>
+            <ul className="space-y-2 text-sm text-gray-600">
+
+    {totalAllResponses === 0 ? (
+        <li>No check-ins recorded yet.</li>
+    ) : (
+        <li>{totalAllResponses} total check-ins recorded</li>
+    )}
+
+    {lastQuestion && (
+        <li>
+            Latest question added: "{lastQuestion.text}"
+        </li>
+    )}
+
+    {totalNegativeResponses > 0 && (
+        <li className="text-red-600 font-medium">
+            {totalNegativeResponses} negative responses detected
+        </li>
+    )}
+
+</ul>
         </div>
+
+        <div className="bg-red-50 p-4 rounded-lg shadow-sm">
+            <h4 className="text-sm font-semibold text-red-700 mb-2">
+                Alerts
+            </h4>
+          <p className="text-sm text-red-600">
+    {totalNegativeResponses > 0
+        ? `${totalNegativeResponses} students need attention`
+        : "No critical alerts"}
+</p>
+
+
+        </div>
+
+    </div>
+)}
+
+
+
+
+            {isResponseModalOpen && selectedResponse && (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
+        <div className="bg-white p-6 rounded-xl w-full max-w-md shadow-xl">
+
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                Response Submitted ✅
+            </h3>
+
+            <p className="text-sm text-gray-600 mb-6">
+                Your answer:
+                <span className="font-medium">
+                    {" "}{selectedResponse.answer}
+                </span>
+            </p>
+
+            <button
+                onClick={() => setIsResponseModalOpen(false)}
+                className="w-full py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700"
+            >
+                Close
+            </button>
+
+        </div>
+    </div>
+)}
+
+           
+
+        </div>
+    
     )
 }
