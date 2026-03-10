@@ -113,6 +113,19 @@ export default function UserManagement() {
         department: '',
     })
 
+    // 🎯 Detail Item Component with Emoji Support
+    const DetailItem = ({ emoji, label, value }) => (
+        <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm hover:shadow-md transition-all duration-200">
+            <p className="text-xs uppercase tracking-wide text-gray-400 mb-1 flex items-center gap-2">
+                <span>{emoji}</span>
+                {label}
+            </p>
+            <p className="text-sm font-semibold text-gray-800">
+                {value || "N/A"}
+            </p>
+        </div>
+    )
+
     const generatePassword = () => {
         const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*'
         let pass = ''
@@ -127,7 +140,7 @@ export default function UserManagement() {
             setEditingUser(user)
             setFormData({
                 ...user,
-                password: '', // Don't show existing password
+                password: '',
             })
         } else {
             setEditingUser(null)
@@ -204,7 +217,7 @@ export default function UserManagement() {
 
     const filteredUsers = users
         .filter(u => u.role === activeTab)
-        .filter(u => !selectedSchool || u.school === selectedSchool) // Filter by selected school if set
+        .filter(u => !selectedSchool || u.school === selectedSchool)
         .filter(u => {
             if (!searchTerm) return true
             const search = searchTerm.toLowerCase()
@@ -224,6 +237,20 @@ export default function UserManagement() {
         { id: 'content_admin', label: 'Content Admins' },
     ]
 
+    const addButtonLabels = {
+        student: "Add Students",
+        school_admin: "Add School Admins",
+        psychologist: "Add Psychologists",
+        content_admin: "Add Content Admins",
+    };
+
+    const roleTitles = {
+        student: "Student",
+        school_admin: "School Admin",
+        psychologist: "Psychologist",
+        content_admin: "Content Admin",
+    };
+
     return (
         <div>
             {/* Tabs */}
@@ -235,21 +262,20 @@ export default function UserManagement() {
                             onClick={() => {
                                 setActiveTab(role.id)
                                 setExpandedRow(null)
-                                setSelectedSchool(null) // Reset selected school on tab change
+                                setSelectedSchool(null)
                             }}
                             className={`
-                whitespace-nowrap pb-4 px-1 border-b-2 font-medium text-sm transition-colors
-                ${activeTab === role.id
+                                whitespace-nowrap pb-4 px-1 border-b-2 font-medium text-sm transition-colors
+                                ${activeTab === role.id
                                     ? 'border-purple-600 text-purple-600'
                                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}
-              `}
+                            `}
                         >
                             {role.label}
                         </button>
                     ))}
                 </nav>
             </div>
-
 
             {/* Action Bar */}
             <div className="mb-6">
@@ -272,7 +298,7 @@ export default function UserManagement() {
                         className="flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500"
                     >
                         <UserPlusIcon className="w-5 h-5 mr-2" />
-                        Add User
+                        {addButtonLabels[activeTab] || "Add User"}
                     </button>
                 </div>
 
@@ -303,16 +329,13 @@ export default function UserManagement() {
             {activeTab === 'student' && !selectedSchool ? (
                 /* School Cards View */
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {/* Compute unique schools from filtered users (or all users if needed, but let's stick to current search if present) */}
                     {(() => {
-                        // First get all students matching search
                         const studentUsers = users.filter(u => u.role === 'student')
                             .filter(u => !searchTerm ||
                                 u.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                                 u.school?.toLowerCase().includes(searchTerm.toLowerCase())
                             );
 
-                        // Group by school
                         const schoolsMap = {};
                         studentUsers.forEach(u => {
                             const schoolName = u.school || 'Unknown School';
@@ -376,7 +399,6 @@ export default function UserManagement() {
                                         <tr>
                                             {activeTab === 'student' && (
                                                 <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-8">
-                                                    {/* Expand column */}
                                                 </th>
                                             )}
                                             <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -385,7 +407,6 @@ export default function UserManagement() {
                                             <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                                 Email
                                             </th>
-                                            {/* Dynamic Columns based on Role */}
                                             {activeTab === 'student' && (
                                                 <>
                                                     <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Class</th>
@@ -425,18 +446,21 @@ export default function UserManagement() {
                                         ) : (
                                             filteredUsers.map((user) => (
                                                 <>
-                                                    <tr key={user.id} className="hover:bg-gray-50">
+                                                    {/* Main Row */}
+                                                    <tr key={user.id} className="hover:bg-gray-50 transition-colors">
                                                         {activeTab === 'student' && (
                                                             <td className="px-6 py-4 whitespace-nowrap">
                                                                 <button
                                                                     onClick={() => toggleRow(user.id)}
-                                                                    className="text-gray-400 hover:text-gray-600"
+                                                                    className="text-gray-400 hover:text-purple-600 transition-colors"
                                                                 >
-                                                                    {expandedRow === user.id ? (
-                                                                        <ChevronDownIcon className="w-5 h-5" />
-                                                                    ) : (
-                                                                        <ChevronRightIcon className="w-5 h-5" />
-                                                                    )}
+                                                                    <ChevronRightIcon
+                                                                        className={`w-5 h-5 transition-transform duration-300 ${
+                                                                            expandedRow === user.id
+                                                                                ? "rotate-90 text-purple-600"
+                                                                                : ""
+                                                                        }`}
+                                                                    />
                                                                 </button>
                                                             </td>
                                                         )}
@@ -446,7 +470,6 @@ export default function UserManagement() {
                                                         <td className="px-6 py-4 whitespace-nowrap">
                                                             <div className="text-sm text-gray-500">{user.email}</div>
                                                         </td>
-                                                        {/* Dynamic Render based on Role */}
                                                         {activeTab === 'student' && (
                                                             <>
                                                                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{user.class}</td>
@@ -468,53 +491,72 @@ export default function UserManagement() {
                                                                 className="text-indigo-600 hover:text-indigo-900 mr-3"
                                                                 title="Edit User"
                                                             >
-                                                                <PencilIcon className="w-5 h-5" />
+                                                                <PencilIcon className="w-5 h-5 inline" />
                                                             </button>
                                                             <button
                                                                 onClick={() => handleResetPassword(user)}
                                                                 className="text-purple-600 hover:text-purple-900 mr-3"
                                                                 title="Reset Password"
                                                             >
-                                                                <KeyIcon className="w-5 h-5" />
+                                                                <KeyIcon className="w-5 h-5 inline" />
                                                             </button>
                                                             <button
                                                                 onClick={() => handleDeleteUser(user.id)}
                                                                 className="text-red-600 hover:text-red-900"
                                                                 title="Delete User"
                                                             >
-                                                                <TrashIcon className="w-5 h-5" />
+                                                                <TrashIcon className="w-5 h-5 inline" />
                                                             </button>
                                                         </td>
                                                     </tr>
-                                                    {/* Expanded Row for Students */}
-                                                    {activeTab === 'student' && expandedRow === user.id && (
-                                                        <tr className="bg-purple-50">
-                                                            <td colSpan="6" className="px-6 py-4">
-                                                                <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
-                                                                    <div>
-                                                                        <span className="font-semibold text-gray-700">Parent Name:</span>
-                                                                        <p className="text-gray-600">{user.parentName || 'N/A'}</p>
-                                                                    </div>
-                                                                    <div>
-                                                                        <span className="font-semibold text-gray-700">Phone Number:</span>
-                                                                        <p className="text-gray-600">{user.phoneNumber || 'N/A'}</p>
-                                                                    </div>
-                                                                    <div>
-                                                                        <span className="font-semibold text-gray-700">Date of Birth:</span>
-                                                                        <p className="text-gray-600">{user.dateOfBirth || 'N/A'}</p>
-                                                                    </div>
-                                                                    <div>
-                                                                        <span className="font-semibold text-gray-700">Blood Group:</span>
-                                                                        <p className="text-gray-600">{user.bloodGroup || 'N/A'}</p>
-                                                                    </div>
-                                                                    <div>
-                                                                        <span className="font-semibold text-gray-700">Emergency Contact:</span>
-                                                                        <p className="text-gray-600">{user.emergencyContact || 'N/A'}</p>
-                                                                    </div>
-                                                                    <div className="col-span-2 md:col-span-1">
-                                                                        <span className="font-semibold text-gray-700">Address:</span>
-                                                                        <p className="text-gray-600">{user.address || 'N/A'}</p>
-                                                                    </div>
+
+                                                    {/* Animated Expanded Row for Students */}
+                                                    {activeTab === 'student' && (
+                                                        <tr>
+                                                            <td colSpan="6" className="p-0 border-0">
+                                                                <div
+                                                                    className={`overflow-hidden transition-all duration-300 ease-in-out ${
+                                                                        expandedRow === user.id
+                                                                            ? "max-h-96 opacity-100"
+                                                                            : "max-h-0 opacity-0"
+                                                                    }`}
+                                                                >
+                                                                    {expandedRow === user.id && (
+                                                                        <div className="bg-purple-50 px-6 py-6 border-t border-purple-100">
+                                                                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+                                                                                <DetailItem
+                                                                                    emoji="👨‍👩‍👧"
+                                                                                    label="Parent Name"
+                                                                                    value={user.parentName}
+                                                                                />
+                                                                                <DetailItem
+                                                                                    emoji="📞"
+                                                                                    label="Phone Number"
+                                                                                    value={user.phoneNumber}
+                                                                                />
+                                                                                <DetailItem
+                                                                                    emoji="🎂"
+                                                                                    label="Date of Birth"
+                                                                                    value={user.dateOfBirth}
+                                                                                />
+                                                                                <DetailItem
+                                                                                    emoji="🩸"
+                                                                                    label="Blood Group"
+                                                                                    value={user.bloodGroup}
+                                                                                />
+                                                                                <DetailItem
+                                                                                    emoji="🚨"
+                                                                                    label="Emergency Contact"
+                                                                                    value={user.emergencyContact}
+                                                                                />
+                                                                                <DetailItem
+                                                                                    emoji="📍"
+                                                                                    label="Address"
+                                                                                    value={user.address}
+                                                                                />
+                                                                            </div>
+                                                                        </div>
+                                                                    )}
                                                                 </div>
                                                             </td>
                                                         </tr>
@@ -539,7 +581,10 @@ export default function UserManagement() {
                         <div className="inline-block align-bottom bg-white rounded-lg px-4 pt-5 pb-4 text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-2xl sm:w-full sm:p-6">
                             <div>
                                 <h3 className="text-lg leading-6 font-medium text-gray-900" id="modal-title">
-                                    {editingUser ? 'Edit User' : 'Create New User'}
+                                    {editingUser
+                                        ? `Edit ${roleTitles[activeTab] || "User"}`
+                                        : `Create New ${roleTitles[activeTab] || "User"}`
+                                    }
                                 </h3>
                                 <div className="mt-4 space-y-4 max-h-[70vh] overflow-y-auto pr-2">
                                     {/* Basic Fields */}
@@ -731,7 +776,6 @@ export default function UserManagement() {
                                             </select>
                                         </div>
                                     )}
-
                                 </div>
                             </div>
                             <div className="mt-5 sm:mt-6 sm:grid sm:grid-cols-2 sm:gap-3 sm:grid-flow-row-dense">
