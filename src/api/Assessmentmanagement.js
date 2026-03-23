@@ -94,7 +94,6 @@ export const fetchResponseSheet = (groupId) =>
     fetch(`${API_BASE_URL}/responses/sheet/${encodeURIComponent(groupId)}`, {
         headers: getAuthHeaders()
     }).then(handleResponse)
-
 export const createResponse = (responseData) =>
     fetch(`${API_BASE_URL}/responses`, {
         method: 'POST',
