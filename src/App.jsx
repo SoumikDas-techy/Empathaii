@@ -20,7 +20,7 @@ function App() {
     if (savedUser) {
       const parsedUser = JSON.parse(savedUser)
       setUser(parsedUser)
-      if (parsedUser.role === 'admin' || parsedUser.email === 'admin@empathai.com') {
+      if (parsedUser.role === 'ADMIN' || parsedUser.email === 'admin@empathai.com') {
         setCurrentPage('admin')
       } else {
         setCurrentPage('dashboard')

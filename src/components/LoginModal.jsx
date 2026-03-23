@@ -1,21 +1,72 @@
 import { useState } from 'react'
+import axios from 'axios'
 import { XMarkIcon, SparklesIcon } from '@heroicons/react/24/outline'
 
 export default function LoginModal({ isOpen, onClose, onLogin }) {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
+  const [loading, setLoading] = useState(false)
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault()
-    if (email === 'test1@test.com' && password === 'test1234') {
-      onLogin({ firstName: 'Test', lastName: 'User', email, role: 'student' })
+    setError('')
+    setLoading(true)
+
+    try {
+      // Step 1: Login and get token
+      const response = await axios.post(
+        'http://localhost:8080/api/auth/login',
+        { email, password }
+      )
+
+      const token = response.data.token
+
+      // ✅ Save token immediately
+      localStorage.setItem('token', token)
+
+      // Step 2: Fetch current user profile
+      const userRes = await axios.get(
+        'http://localhost:8080/api/users/me',
+        {
+          headers: {
+            Authorization: `Bearer ${token}`
+          }
+        }
+      )
+
+      const user = userRes.data
+      console.log('LOGGED USER:', user)
+
+      // ✅ Save user to localStorage
+      localStorage.setItem('user', JSON.stringify(user))
+
+      // ✅ FIXED: Role-based redirect
+      // /api/users/me returns "ADMIN" for SUPER_ADMIN (masked in UserController)
+      // All admin roles go to /admin
+      const adminRoles = ['ADMIN', 'SUPER_ADMIN', 'SCHOOL_ADMIN', 'CONTENT_ADMIN', 'PSYCHOLOGIST']
+
+      if (adminRoles.includes(user.role)) {
+        window.location.href = '/admin'
+      } else {
+        window.location.href = '/student'
+      }
+
+      onLogin(user)
       onClose()
-    } else if (email === 'admin@empathai.com' && password === 'admin1234') {
-      onLogin({ firstName: 'Admin', lastName: 'User', email, role: 'admin' })
-      onClose()
-    } else {
-      setError('Invalid credentials.')
+
+    } catch (err) {
+      console.error('Login error:', err)
+
+      // ✅ FIXED: Backend error message key is "message" not "message" (was checking wrong key)
+      const msg =
+        err.response?.data?.message ||
+        err.response?.data?.error ||
+        'Invalid credentials'
+
+      setError(msg)
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -43,7 +94,9 @@ export default function LoginModal({ isOpen, onClose, onLogin }) {
 
         <form onSubmit={handleSubmit} className="space-y-6 relative z-10">
           <div>
-            <label className="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-2 ml-1">Account Email</label>
+            <label className="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-2 ml-1">
+              Account Email
+            </label>
             <input
               type="email"
               value={email}
@@ -51,11 +104,14 @@ export default function LoginModal({ isOpen, onClose, onLogin }) {
               className="w-full px-5 py-4 bg-gray-50 border border-gray-100 rounded-2xl focus:ring-2 focus:ring-primary/20 focus:border-primary focus:bg-white outline-none transition-all font-medium text-gray-700 placeholder:text-gray-300"
               placeholder="name@example.com"
               required
+              disabled={loading}
             />
           </div>
 
           <div>
-            <label className="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-2 ml-1">Secure Password</label>
+            <label className="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-2 ml-1">
+              Secure Password
+            </label>
             <input
               type="password"
               value={password}
@@ -63,37 +119,34 @@ export default function LoginModal({ isOpen, onClose, onLogin }) {
               className="w-full px-5 py-4 bg-gray-50 border border-gray-100 rounded-2xl focus:ring-2 focus:ring-primary/20 focus:border-primary focus:bg-white outline-none transition-all font-medium text-gray-700 placeholder:text-gray-300"
               placeholder="••••••••"
               required
+              disabled={loading}
             />
           </div>
 
           {error && (
-            <div className="bg-red-50 text-red-600 text-xs font-bold py-3 px-4 rounded-xl text-center border border-red-100 animate-fade-in">
+            <div className="bg-red-50 text-red-600 text-xs font-bold py-3 px-4 rounded-xl text-center border border-red-100">
               {error}
             </div>
           )}
 
           <button
             type="submit"
-            className="w-full btn-primary !rounded-2xl !py-4 flex items-center justify-center gap-2 group"
+            disabled={loading}
+            className="w-full btn-primary !rounded-2xl !py-4 flex items-center justify-center gap-2 group disabled:opacity-60 disabled:cursor-not-allowed"
           >
-            Start Access
-            <SparklesIcon className="w-5 h-5 opacity-0 group-hover:opacity-100 transition-opacity" />
+            {loading ? 'Signing in...' : 'Start Access'}
+            {!loading && (
+              <SparklesIcon className="w-5 h-5 opacity-0 group-hover:opacity-100 transition-opacity" />
+            )}
           </button>
         </form>
 
         <div className="mt-10 p-5 bg-gray-50 rounded-2xl border border-gray-100 relative z-10">
-          <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-3 text-center">Test Credentials</p>
-          <div className="grid grid-cols-2 gap-4 text-xs">
-            <div className="bg-white p-3 rounded-xl border border-gray-100">
-              <p className="font-bold text-gray-400 mb-1 uppercase tracking-tighter">Student</p>
-              <p className="font-bold text-dark-navy truncate">test1@test.com</p>
-              <p className="text-gray-500 font-medium">test1234</p>
-            </div>
-            <div className="bg-white p-3 rounded-xl border border-gray-100">
-              <p className="font-bold text-primary mb-1 uppercase tracking-tighter">Admin</p>
-              <p className="font-bold text-primary truncate">admin@empathai.com</p>
-              <p className="text-gray-500 font-medium">admin1234</p>
-            </div>
+          <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-3 text-center">
+            Use Backend Credentials
+          </p>
+          <div className="text-xs text-center text-gray-600">
+            Login using registered users from backend
           </div>
         </div>
       </div>
