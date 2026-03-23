@@ -1,8 +1,119 @@
-import { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { PlusIcon, TrashIcon, PencilIcon, ChevronDownIcon, ChevronRightIcon, FolderIcon, FolderPlusIcon } from '@heroicons/react/24/outline'
-
+import {
+    fetchGroups,
+    fetchQuestions,
+    fetchResponses,
+    fetchResponseSheet,
+    fetchAnalyticsSummary,
+    fetchGroupAnalytics,
+    createGroup,
+    deleteGroup,
+    createQuestion,
+    updateQuestion,
+    deleteQuestion,
+    createResponse
+} from '../../api/AssessmentManagement'
 export default function AssessmentManagement() {
-    const [questions, setQuestions] = useState([
+    const [questions, setQuestions] = useState([])
+        /*{
+            id: 1,
+            text: 'How are you feeling today?',
+            options: ['Very Happy 😊', 'Happy 🙂', 'Okay 😐', 'Sad 😢'],
+            groups: ['Daily Check-in']
+        },
+        {
+            id: 2,
+            text: 'How well did you sleep last night?',
+            options: ['Very Well 😴', 'Good 😌', 'Not Great 😪', 'Poorly 😫'],
+            groups: ['Daily Check-in']
+        },
+        {
+            id: 3,
+            text: 'How confident do you feel about your studies?',
+            options: ['Very Confident 💪', 'Confident 👍', 'Somewhat Confident 🤔', 'Not Confident 😟'],
+            groups: ['Class 8th']
+        },
+    ])*/
+
+    const [groups, setGroups] = useState([])
+    /*
+        { id: 'Daily Check-in', name: 'Daily Check-in', color: 'purple', isDefault: true },
+        { id: 'Class 8th', name: 'Class 8th Standard', color: 'green', isDefault: true },
+        { id: 'Class 9th', name: 'Class 9th Standard', color: 'blue', isDefault: true },
+        { id: 'Class 10th', name: 'Class 10th Standard', color: 'indigo', isDefault: true },
+        
+        
+    ])*/
+
+    // Get current user role
+const savedUser = localStorage.getItem('user')
+const currentUser = savedUser ? JSON.parse(savedUser) : null
+const isAdmin = currentUser?.role === 'admin'
+
+    const [studentResponses, setStudentResponses] = useState([])
+    const [selectedResponse, setSelectedResponse] = useState(null)
+    const [showResponseSheet, setShowResponseSheet] = useState(false)
+    const [isResponseModalOpen, setIsResponseModalOpen] = useState(false) 
+    const [selectedGroup, setSelectedGroup] = useState(null)
+    const [expandedQuestion, setExpandedQuestion] = useState(null)
+    const [isQuestionModalOpen, setIsQuestionModalOpen] = useState(false)
+    const [isGroupModalOpen, setIsGroupModalOpen] = useState(false)
+    const [editingQuestion, setEditingQuestion] = useState(null)
+    const [searchTerm, setSearchTerm] = useState('')
+    const [filterAge, setFilterAge] = useState('')
+    const [filterClass, setFilterClass] = useState('')
+    const [filterGender, setFilterGender] = useState('')
+    const [responseSheet, setResponseSheet] = useState([])
+    const [questionFormData, setQuestionFormData] = useState({
+        question: '',
+        option1: '',
+        option2: '',
+        option3: '',
+        option4: '',
+        groups: [],
+        
+    })
+
+    const [groupFormData, setGroupFormData] = useState({
+        name: '',
+        color: 'purple'
+    })
+ 
+const [selectedFilter, setSelectedFilter] = useState('ALL')
+const [analytics, setAnalytics] = useState(null)
+const showResponseSheetRef = useRef(showResponseSheet)
+useEffect(() => {
+    showResponseSheetRef.current = showResponseSheet
+}, [showResponseSheet])
+
+const selectedGroupRef = useRef(selectedGroup)
+useEffect(() => {
+    selectedGroupRef.current = selectedGroup
+}, [selectedGroup])
+
+const groupsRef = useRef(groups)
+useEffect(() => {
+    groupsRef.current = groups
+}, [groups])
+const matchesGender = (student) => {
+    if (!filterGender) return true
+    if (!student.gender) return true
+    return student.gender.toLowerCase().startsWith(filterGender.toLowerCase())
+}
+
+
+
+useEffect(() => {
+
+    const defaultGroups = [
+        { id: 'Daily Check-in', name: 'Daily Check-in', color: 'purple', isDefault: true },
+        { id: 'Class 8th', name: 'Class 8th Standard', color: 'green', isDefault: true },
+        { id: 'Class 9th', name: 'Class 9th Standard', color: 'blue', isDefault: true },
+        { id: 'Class 10th', name: 'Class 10th Standard', color: 'indigo', isDefault: true },
+    ]
+
+    const defaultQuestions = [
         {
             id: 1,
             text: 'How are you feeling today?',
@@ -21,79 +132,70 @@ export default function AssessmentManagement() {
             options: ['Very Confident 💪', 'Confident 👍', 'Somewhat Confident 🤔', 'Not Confident 😟'],
             groups: ['Class 8th']
         },
-    ])
+    ]
 
-    const [groups, setGroups] = useState([
-        { id: 'Daily Check-in', name: 'Daily Check-in', color: 'purple', isDefault: true },
-        { id: 'Class 8th', name: 'Class 8th Standard', color: 'green', isDefault: true },
-        { id: 'Class 9th', name: 'Class 9th Standard', color: 'blue', isDefault: true },
-        { id: 'Class 10th', name: 'Class 10th Standard', color: 'indigo', isDefault: true },
-        
-        
-    ])
-    const [studentResponses, setStudentResponses] = useState([])
-    const [selectedResponse, setSelectedResponse] = useState(null)
-    const [showResponseSheet, setShowResponseSheet] = useState(false)
-    const [isResponseModalOpen, setIsResponseModalOpen] = useState(false) 
-    const [selectedGroup, setSelectedGroup] = useState(null)
-    const [expandedQuestion, setExpandedQuestion] = useState(null)
-    const [isQuestionModalOpen, setIsQuestionModalOpen] = useState(false)
-    const [isGroupModalOpen, setIsGroupModalOpen] = useState(false)
-    const [editingQuestion, setEditingQuestion] = useState(null)
-    const [searchTerm, setSearchTerm] = useState('')
-    const [filterAge, setFilterAge] = useState('')
-    const [filterClass, setFilterClass] = useState('')
-    const [filterGender, setFilterGender] = useState('')
+    // Fetch Groups
+   fetchGroups()
+.then(data => {
+    console.log('Groups from API:', data)
+    const groupList = Array.isArray(data) ? data : (data?.data || data || [])
+    // Sort by createdAt ascending so newest groups appear last
+    const sorted = [...groupList].sort((a, b) => {
+        if (!a.createdAt) return -1
+        if (!b.createdAt) return 1
+        return new Date(a.createdAt) - new Date(b.createdAt)
+    })
+    setGroups(sorted)
+}) .catch((err) => {
+            console.error('Groups fetch failed:', err)
+            setGroups(defaultGroups)
+        })
 
-    const [questionFormData, setQuestionFormData] = useState({
-        text: '',
-        option1: '',
-        option2: '',
-        option3: '',
-        option4: '',
-        groups: [],
-        
+    // Fetch Questions
+fetchQuestions(0,50)
+    .then(data => {
+        console.log('Questions from DB:', data)
+        const questionList = data?.content || data || []
+        // always use DB data, never fall back to hardcoded defaults
+        setQuestions(questionList)
+    })
+    .catch(err => {
+        console.error('Questions fetch error:', err)
+        // only use defaults if DB completely unreachable
+        setQuestions(defaultQuestions)
     })
 
-    const [groupFormData, setGroupFormData] = useState({
-        name: '',
-        color: 'purple'
-    })
- 
+    // Fetch Responses from DB for counts/alerts
+    fetchResponses()
+        .then(data => {
+            if (data && data.content && data.content.length > 0)
+                setStudentResponses(data.content)
+            else if (data && data.length > 0)
+                setStudentResponses(data)
+        })
+        /* .catch(err => console.error('Responses error:', err)) */
+        .catch(err => console.error('Responses error:', err))
 
-//TEST PURPOSES - REMOVE LATER
-useEffect(() => {
-    setStudentResponses([
-        { studentId: '1', groupId: 'Class 8th', emotion: 'positive' },
-        { studentId: '2', groupId: 'Class 8th', emotion: 'positive' },
-        { studentId: '3', groupId: 'Class 8th', emotion: 'positive' },
-        { studentId: '4', groupId: 'Class 8th', emotion: 'negative' },
-        { studentId: '1', groupId: 'Class 9th', emotion: 'positive' },
-        { studentId: '2', groupId: 'Class 9th', emotion: 'neutral' },
-        { studentId: '3', groupId: 'Class 9th', emotion: 'neutral' },
-        { studentId: '4', groupId: 'Class 9th', emotion: 'negative' },
+    // Load analytics on start
+    fetchAnalyticsSummary('ALL')
+        .then(data => setAnalytics(data))
+        .catch(err => console.error('Analytics error:', err))
 
-
-        { studentId: '1', name: 'Rahul', age: 14, className: 'Class 9th', sex: 'Male', questionId: 1, answer: 'Very Happy 😊' },
-        { studentId: '2', name: 'Ananya', age: 13, className: 'Class 9th', sex: 'Female', questionId: 1, answer: 'Sad 😢' },
-        { studentId: '7', name: 'Ritu', age: 14, className: 'Class 8th', sex: 'Female', questionId: 3, answer: 'Very Confident 💪' },
-        { studentId: '4', name: 'Anay', age: 13, className: 'Class 8th', sex: 'Male', questionId: 2, answer: 'Not Great 😪' },
-        { studentId: '5', name: 'Raj', age: 14, className: 'Class 8th', sex: 'Male', questionId: 1, answer: 'Very Happy 😊' },
-        { studentId: '5', name: 'Raj', age: 14, className: 'Class 8th', sex: 'Male', questionId: 1, answer: 'Sad 😢' },
-        { studentId: '6', name: 'Rahul', age: 14, className: 'Class 9th', sex: 'Male', questionId: 2, answer: 'Good 😌' },
-        { studentId: '8', name: 'Ritu', age: 14, className: 'Daily Check-in', sex: 'Female', questionId: 3, answer: 'Very Confident 💪' },
-    
-    
-
-
-
-
-
-        
-    ])
 }, [])
 
-
+const loadAnalytics = (filter, groupId) => {
+    if (groupId) {
+        // Find the group name from the groups array
+        const groupName = groups.find(g => g.id === groupId)?.name || groupId
+        fetchGroupAnalytics(groupName, filter)
+            .then(data => setAnalytics(data))
+            .catch(err => console.error('Analytics error:', err))
+    } else {
+        fetchAnalyticsSummary(filter)
+            .then(data => setAnalytics(data))
+            .catch(err => console.error('Analytics error:', err))
+    }
+}
     const colorOptions = [
         { value: 'purple', label: 'Purple', class: 'bg-purple-500' },
         { value: 'blue', label: 'Blue', class: 'bg-blue-500' },
@@ -120,7 +222,19 @@ useEffect(() => {
     }
 
 
-
+const getOptionsArray = (question) => {
+    // New separate columns from DB
+    if (question && (question.optionA || question.optionB || question.optionC || question.optionD)) {
+        return [question.optionA, question.optionB, question.optionC, question.optionD]
+            .filter(o => o && o.trim())
+    }
+    // Fallback for old comma-separated format
+    const options = question?.options || question
+    if (!options) return []
+    if (Array.isArray(options)) return options
+    if (typeof options === 'string') return options.split(',').map(o => o.trim())
+    return []
+}
     const detectEmotion = (optionText) => {
     const text = optionText.toLowerCase()
 
@@ -142,21 +256,27 @@ useEffect(() => {
 
 
 
-    const handleOpenQuestionModal = (question = null) => {
+  const handleOpenQuestionModal = (question = null) => {
         if (question) {
             setEditingQuestion(question)
+    const opts = getOptionsArray(question).map(opt => 
+    opt.replace(/^[A-D]-\s*/, '').trim() 
+)
+const grp = Array.isArray(question.groups)
+                ? question.groups
+                : (question.groupMap || '').split(',').map(g => g.trim()).filter(Boolean)
             setQuestionFormData({
-                text: question.text,
-                option1: question.options[0] || '',
-                option2: question.options[1] || '',
-                option3: question.options[2] || '',
-                option4: question.options[3] || '',
-                groups: question.groups || []
+                question: question.questions || '',
+                option1: opts[0] || '',
+                option2: opts[1] || '',
+                option3: opts[2] || '',
+                option4: opts[3] || '',
+                groups: grp
             })
         } else {
             setEditingQuestion(null)
             setQuestionFormData({
-                text: '',
+                question: '',
                 option1: '',
                 option2: '',
                 option3: '',
@@ -166,13 +286,12 @@ useEffect(() => {
         }
         setIsQuestionModalOpen(true)
     }
-
     const handleOpenGroupModal = () => {
         setGroupFormData({ name: '', color: 'purple' })
         setIsGroupModalOpen(true)
     }
 
-    const handleSaveQuestion = () => {
+    /*const handleSaveQuestion = () => {
         const options = [
             questionFormData.option1,
             questionFormData.option2,
@@ -180,7 +299,7 @@ useEffect(() => {
             questionFormData.option4
         ].filter(opt => opt.trim())
 
-        if (!questionFormData.text || options.length < 2) {
+        if (!questionFormData.question || options.length < 2) {
             alert('Please provide a question and at least 2 options')
             return
         }
@@ -188,13 +307,13 @@ useEffect(() => {
         if (editingQuestion) {
             setQuestions(questions.map(q =>
                 q.id === editingQuestion.id
-                    ? { ...q, text: questionFormData.text, options, groups: questionFormData.groups }
+                    ? { ...q, text: questionFormData.question, options, groups: questionFormData.groups }
                     : q
             ))
         } else {
 const newQuestion = {
     id: Date.now(),
-    text: questionFormData.text,
+    text: questionFormData.question,
     options,
     groups: questionFormData.groups,
     
@@ -202,25 +321,119 @@ const newQuestion = {
             setQuestions([...questions, newQuestion])
         }
         setIsQuestionModalOpen(false)
+    }*/
+
+
+
+
+     const handleSaveQuestion = () => {
+    const options = [
+        questionFormData.option1,
+        questionFormData.option2,
+        questionFormData.option3,
+        questionFormData.option4
+    ].filter(opt => opt.trim())
+
+    if (!questionFormData.question || options.length < 2) {
+        alert('Please provide a question and at least 2 options')
+        return
     }
 
-    const handleSaveGroup = () => {
-        if (!groupFormData.name.trim()) {
-            alert('Please provide a group name')
-            return
-        }
-
-        const newGroup = {
-            id: groupFormData.name,
-            name: groupFormData.name,
-            color: groupFormData.color,
-            isDefault: false
-        }
-        setGroups([...groups, newGroup])
-        setIsGroupModalOpen(false)
+    if (questionFormData.groups.length === 0) {
+        alert('Please select at least one group')
+        return
     }
 
-    const handleDeleteQuestion = (id) => {
+   
+const letters = ['A', 'B', 'C', 'D']
+const formattedOptions = options.map((opt, idx) => `${letters[idx]}- ${opt}`)
+
+const questionData = {
+    questions: questionFormData.question,           
+    options: formattedOptions.join(','), 
+    groupMap: questionFormData.groups.join(',')     
+}
+
+    if (editingQuestion) {
+        updateQuestion(editingQuestion.id, questionData)
+            .then(updated => {
+                const merged = updated && updated.id
+                    ? updated
+                    : { ...editingQuestion, ...questionData }
+                setQuestions(prev => prev.map(q =>
+                    q.id === editingQuestion.id ? merged : q
+                ))
+                setIsQuestionModalOpen(false)
+            })
+            .catch(() => {
+                setQuestions(prev => prev.map(q =>
+                    q.id === editingQuestion.id
+                        ? { ...editingQuestion, ...questionData }
+                        : q
+                ))
+                setIsQuestionModalOpen(false)
+            })
+    } else {
+        createQuestion(questionData)
+    .then(newQuestion => {
+        console.log('✅ Question saved to DB:', newQuestion)
+        const toAdd = newQuestion && newQuestion.id
+            ? newQuestion
+            : { id: Date.now(), ...questionData }
+        setQuestions(prev => [...prev, toAdd])
+        setIsQuestionModalOpen(false)
+        // re-fetch all questions from DB to stay in sync
+        fetchQuestions(0, 100)
+            .then(data => {
+                const questionList = data?.content || data || []
+                if (questionList.length > 0) setQuestions(questionList)
+            })
+            .catch(err => console.error('Refetch error:', err))
+    })
+    .catch(err => {
+        console.error('❌ Question NOT saved to DB:', err)
+        setQuestions(prev => [...prev, { id: Date.now(), ...questionData }])
+        setIsQuestionModalOpen(false)
+    })
+    }
+}
+   const handleSaveGroup = () => {
+    if (!groupFormData.name.trim()) {
+        alert('Please provide a group name')
+        return
+    }
+
+    const groupData = {
+        
+        name: groupFormData.name,
+        color: groupFormData.color,
+        isDefault: false
+    }
+
+    console.log(' Creating group — sending to DB:', groupData)
+
+   setIsGroupModalOpen(false)
+
+createGroup(groupData)
+    .then(() => {
+        fetchGroups()
+            .then(data => {
+                const groupList = Array.isArray(data) ? data : (data?.data || data || [])
+                const sorted = [...groupList].sort((a, b) => {
+                    if (!a.createdAt) return -1
+                    if (!b.createdAt) return 1
+                    return new Date(a.createdAt) - new Date(b.createdAt)
+                })
+                setGroups(sorted)
+            })
+    })
+    .catch(err => {
+        console.error('❌ Group NOT saved to DB:', err)
+        alert(`Failed to save group: ${err.message}`)
+    })
+}
+
+    /*const handleDeleteQuestion = (id) => {
         if (window.confirm('Are you sure you want to delete this question?')) {
             setQuestions(questions.filter(q => q.id !== id))
         }
@@ -245,13 +458,64 @@ const newQuestion = {
                 setSelectedGroup(null)
             }
         }
+    }*/
+
+const handleDeleteGroup = (groupId) => {
+    console.log(' Delete clicked for:', groupId)
+    const group = groups.find(g => g.id === groupId)
+    console.log(' Found group:', group)
+    if (!group) return
+
+    console.log('isDefault value:', group.isDefault)
+    console.log('typeof isDefault:', typeof group.isDefault)  
+
+    if (group.isDefault === true || group.isDefault === 'true') {  
+        alert('Cannot delete default groups')
+        return
     }
+
+    const hasQuestions = questions.some(q => {
+    if (Array.isArray(q.groups)) return q.groups.includes(groupId)
+    if (typeof q.groupMap === 'string') return q.groupMap.split(',').map(g => g.trim()).includes(groupId)
+    return false
+})
+    if (hasQuestions) {
+        alert('Cannot delete group with existing questions.')
+        return
+    }
+
+    if (window.confirm(`Delete group "${group.name}"?`)) {
+        // remove from UI immediately
+        setGroups(prev => prev.filter(g => g.id !== groupId))
+        if (selectedGroup === groupId) setSelectedGroup(null)
+
+        console.log('📤 Deleting group from DB:', groupId)
+        deleteGroup(groupId)
+            .then(() => {
+                console.log('✅ Group deleted from DB successfully:', groupId)
+            })
+            .catch(err => {
+                console.error('❌ Group NOT deleted from DB:', err)
+                setGroups(prev => [...prev, group])
+                alert(`Could not delete "${group.name}" from database. It has been restored.`)
+            })
+    }
+}
+const handleDeleteQuestion = (id) => {
+    if (window.confirm('Are you sure you want to delete this question?')) {
+        deleteQuestion(id)
+            .then(() => {
+                setQuestions(questions.filter(q => q.id !== id))
+            })
+            .catch(err => console.error('Delete error:', err))
+    }
+}
 
     const toggleQuestion = (id) => {
         setExpandedQuestion(expandedQuestion === id ? null : id)
     }
 
-const handleOptionClick = (question, option) => {
+/*const handleOptionClick = (question, option) => {
     const emotion = detectEmotion(option)
 
     const newResponse = {
@@ -262,8 +526,7 @@ const handleOptionClick = (question, option) => {
         answer: option,
         date: new Date().toISOString()
     }
-
-    setStudentResponses(prev => {
+         setStudentResponses(prev => {
         // Remove previous answer of same student for same question
         const filtered = prev.filter(
             r =>
@@ -280,17 +543,100 @@ const handleOptionClick = (question, option) => {
     setSelectedResponse(newResponse)
     setIsResponseModalOpen(true)
 }
-    const getGroupQuestions = (groupId) => {
-        return questions.filter(q => q.groups.includes(groupId))
+*/
+
+const handleOptionClick = (question, option) => {
+
+    const emotion = detectEmotion(option)
+
+    const savedUser = localStorage.getItem('user')
+    const user = savedUser ? JSON.parse(savedUser) : null
+
+    const studentName = user
+        ? `${user.firstName || ''} ${user.lastName || ''}`.trim()
+        : 'Guest'
+
+    const currentGroupId = selectedGroupRef.current
+    const groupName = groupsRef.current.find(g => g.id === currentGroupId)?.name || currentGroupId
+    const responseData = {
+        studentId: user?.email || user?.id || 'guest_' + Date.now(),
+        studentName: studentName,
+        age: user?.age || null,
+        className: user?.className || groupName,
+        gender: user?.gender || null,
+        groupId: currentGroupId,       
+        groupName: groupName, 
+        questionId: question.id,
+        questionText: question.questions || question.question || question.text || '',
+        emotion: emotion,
+        answer: option
     }
 
-    const filteredQuestions = selectedGroup
-        ? questions.filter(q => q.groups.includes(selectedGroup))
-        : questions
+   console.log('Saving response:', JSON.stringify(responseData))
+   console.log('groupName:', groupName)
+   console.log('currentGroupId:', currentGroupId)
+   console.log('groupsRef.current:', JSON.stringify(groupsRef.current))
+   createResponse(responseData)
+       .then(saved => {
+    const toStore = { ...responseData, ...saved, answer: responseData.answer } 
+    setStudentResponses(prev => {
+        const filtered = prev.filter(
+            r => !(r.studentId === responseData.studentId && r.questionId === question.id)
+        )
+        return [...filtered, toStore]
+    })
+            setSelectedResponse(saved)
+            setIsResponseModalOpen(true)
 
+           
+            fetchResponseSheet(groupName)
+            
+                .then(data => {
+                    const sheet = Array.isArray(data) ? data : data?.content || data || []
+                    setResponseSheet(sheet)
+                })
+                .catch(err => console.error('Sheet refresh error:', err))
+        })
+        .catch(err => {
+            console.error('Save error:', err)
+            const local = {
+                ...responseData,
+                date: new Date().toISOString()
+            }
+            setStudentResponses(prev => {
+                const filtered = prev.filter(
+                    r => !(r.studentId === responseData.studentId &&
+                           r.questionId === question.id)
+                )
+                return [...filtered, local]
+            })
+            setSelectedResponse(local)
+            setIsResponseModalOpen(true)
+        })
+}
+
+   
+    // WITH THIS
+const getGroupQuestions = (groupId) => {
+    return questions.filter(q => {
+        if (!q.groups && !q.groupMap) return false
+        if (Array.isArray(q.groups)) return q.groups.map(String).includes(String(groupId))
+        if (typeof q.groupMap === 'string') return q.groupMap.split(',').map(g => g.trim()).includes(String(groupId))
+        return false
+    })
+}
+   const filteredQuestions = selectedGroup
+    ? questions.filter(q => {
+        if (!q.groups && !q.groupMap) return false
+        if (Array.isArray(q.groups)) return q.groups.map(String).includes(String(selectedGroup))
+        if (typeof q.groupMap === 'string') return q.groupMap.split(',').map(g => g.trim()).includes(String(selectedGroup))
+        return false
+    })
+    : questions
     const searchedQuestions = filteredQuestions.filter(q => {
         if (!searchTerm) return true
-        return q.text.toLowerCase().includes(searchTerm.toLowerCase())
+        const text = q.questions || q.question || q.text || ''
+        return text.toLowerCase().includes(searchTerm.toLowerCase())
     })
 
 
@@ -345,14 +691,14 @@ const uniqueStudents = Array.from(
 // Filter students based on admin filters
 const filteredStudents = uniqueStudents.filter(student => {
     const matchesAge = filterAge ? student.age == filterAge : true
-    const matchesClass = filterClass ? student.className.toLowerCase().includes(filterClass.toLowerCase()) : true
-    const matchesGender = filterGender ? student.sex.toLowerCase().startsWith(filterGender.toLowerCase()) : true
+    const matchesClass = filterClass ? (student.className || '').toLowerCase().includes(filterClass.toLowerCase()) : true
+    const matchesGender = filterGender ? (student.gender || student.sex || '').toLowerCase().startsWith(filterGender.toLowerCase()) : true
     return matchesAge && matchesClass && matchesGender
 })
 const classStudents = filteredStudents.filter(
 student => student.className === selectedGroup
 )
-{/*Reponse full*/}
+//Reponse full
 const getStudentAnswer = (studentId, questionId) => {
     const response = studentResponses.find(
         r => r.studentId === studentId && r.questionId === questionId
@@ -363,20 +709,24 @@ const getStudentAnswer = (studentId, questionId) => {
     const question = questions.find(q => q.id === questionId)
     if (!question) return "-"
 
-    const optionIndex = question.options.indexOf(response.answer)
+   const opts = getOptionsArray(question)
+    const optionIndex = opts.indexOf(response.answer)
 
     if (optionIndex === -1) return "-"
 
-    const letter = String.fromCharCode(65 + optionIndex) 
-    const fullAnswer = question.options[optionIndex]
+    const letter = String.fromCharCode(65 + optionIndex)
+    const fullAnswer = opts[optionIndex]
 
     return `${letter} - ${fullAnswer}`
 }
+const filteredSheet = Array.isArray(responseSheet) 
+    ? responseSheet.filter(matchesGender) 
+    : []
 
     return (
         <div>
             {/* Header */}
-            <div className="mb-6">
+            <div className="mb-10">
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                     <div>
                         <h3 className="text-lg font-medium text-gray-900">Feelings Explorer</h3>
@@ -387,12 +737,20 @@ const getStudentAnswer = (studentId, questionId) => {
                         </p>
                     </div>
                     <div className="flex gap-2">
-                        <select
-    className="border border-gray-300 rounded-md shadow-sm text-sm font-medium px-3 py-2 text-sm focus:ring-purple-500 focus:border-purple-500"
+
+                 <select
+    value={selectedFilter}
+    onChange={(e) => {
+        const newFilter = e.target.value
+        setSelectedFilter(newFilter)
+        loadAnalytics(newFilter, selectedGroup)
+    }}
+    className="border border-gray-300 rounded-md shadow-sm text-sm font-medium px-3 py-2 focus:ring-purple-500 focus:border-purple-500"
 >
-    <option>Today</option>
-    <option>This Week</option>
-    <option>This Month</option>
+    <option value="ALL">All Time</option>
+    <option value="TODAY">Today</option>
+    <option value="THIS_WEEK">This Week</option>
+    <option value="THIS_MONTH">This Month</option>
 </select>
 
                         <button
@@ -412,7 +770,8 @@ const getStudentAnswer = (studentId, questionId) => {
                     </div>
                 </div>
             </div>
-            
+
+
             {/* Groups Grid */}
             <div className="mb-8">
                 <h4 className="text-sm font-semibold text-gray-700 uppercase mb-3">Question Groups</h4>
@@ -425,10 +784,18 @@ const getStudentAnswer = (studentId, questionId) => {
                         return (
                             <div
                                 key={group.id}
-                                onClick={() => {
+                               /* onClick={() => {
 setSelectedGroup(group.id)
 setExpandedQuestion(null)
 setShowResponseSheet(false)
+}} */ 
+onClick={() => {
+    setSelectedGroup(group.id)
+    setExpandedQuestion(null)
+    setShowResponseSheet(false)
+    setResponseSheet([])  // ← clear old sheet
+    setFilterGender('')   // ← reset gender filter
+    loadAnalytics(selectedFilter, group.id)
 }}
                                 className={`
                   relative p-4 rounded-lg border-2 cursor-pointer transition-all
@@ -444,18 +811,18 @@ setShowResponseSheet(false)
                                             {group.name}
                                         </h5>
                                     </div>
-                                    {!group.isDefault && (
-                                        <button
-                                            onClick={(e) => {
-                                                e.stopPropagation()
-                                                handleDeleteGroup(group.id)
-                                            }}
-                                            className="text-gray-400 hover:text-red-600"
-                                            title="Delete Group"
-                                        >
-                                            <TrashIcon className="w-4 h-4" />
-                                        </button>
-                                    )}
+                                    {isAdmin && (
+    <button
+        onClick={(e) => {
+            e.stopPropagation()
+            handleDeleteGroup(group.id)
+        }}
+        className="text-gray-400 hover:text-red-600"
+        title="Delete Group"
+    >
+        <TrashIcon className="w-4 h-4" />
+    </button>
+)}
                                 </div>
                                 <div className="flex items-center justify-between">
                                     <span className="text-xs text-gray-500">
@@ -485,8 +852,22 @@ Questions in {groups.find(g => g.id === selectedGroup)?.name}
 </h4>
 
 <button
-onClick={() => setShowResponseSheet(true)}
-className="flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500"
+onClick={() => {
+    setShowResponseSheet(true)
+    setResponseSheet([])
+    setFilterGender('')
+    const groupName = groups.find(g => g.id === selectedGroup)?.name || selectedGroup  // ← add this
+    fetchResponseSheet(groupName)  // ← use groupName instead of selectedGroup
+        .then(data => {
+            const sheet = Array.isArray(data)
+                ? data
+                : data?.content || data || []
+            setResponseSheet(sheet)
+        })
+        .catch(err => console.error('Sheet error:', err))
+    loadAnalytics(selectedFilter, selectedGroup)
+}}
+className="flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-purple-600 hover:bg-purple-700"
 >
 View Responses
 </button>
@@ -539,7 +920,9 @@ View Responses
                                                     <div className="flex items-center gap-2 mb-1">
                                                         <span className="text-xs font-semibold text-gray-500">Q{index + 1}</span>
                                                     </div>
-                                                    <p className="text-sm font-medium text-gray-900">{question.text}</p>
+                                                    <p className="text-sm font-medium text-gray-900">
+    {question.questions || question.question || question.text || ''}
+</p>
                                                 </div>
                                             </div>
                                             <div className="flex items-center gap-2 ml-4">
@@ -565,13 +948,16 @@ View Responses
                                             <div className="mt-4 pl-8 pt-3 border-t border-gray-100">
                                                 <p className="text-xs font-semibold text-gray-500 uppercase mb-2">Answer Options:</p>
                                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                                                   {question.options.map((option, idx) => (
+                                                  {getOptionsArray(question).map((option, idx) => (
     <div key={idx} className="flex flex-col">
 
-        <div
+        {/* <div
             onClick={() => handleOptionClick(question, option)}
             className="flex items-center p-2 bg-purple-50 rounded-md cursor-pointer hover:bg-purple-100 transition"
-        >
+        > */}<div
+   onClick={() => handleOptionClick(question, option)}
+className="flex items-center p-2 bg-purple-50 rounded-md transition cursor-pointer hover:bg-purple-100"
+>
             <span className="flex-shrink-0 w-6 h-6 flex items-center justify-center bg-purple-200 text-purple-700 rounded-full text-xs font-bold mr-2">
                 {idx + 1}
             </span>
@@ -617,8 +1003,8 @@ View Responses
                                             Question Text
                                         </label>
                                         <textarea
-                                            value={questionFormData.text}
-                                            onChange={(e) => setQuestionFormData({ ...questionFormData, text: e.target.value })}
+                                            value={questionFormData.question}
+                                            onChange={(e) => setQuestionFormData({ ...questionFormData, question: e.target.value })}
                                             rows="2"
                                             placeholder="e.g., How are you feeling today?"
                                             className="block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-purple-500 focus:border-purple-500 sm:text-sm"
@@ -704,7 +1090,7 @@ View Responses
             )}
 
 
-{/* Response Sheet */}
+        {/* Response Sheet Modal 
 {showResponseSheet && (
 <div className="mt-8 bg-white border border-gray-200 rounded-lg shadow-sm p-4">
 
@@ -722,7 +1108,7 @@ className="flex items-center px-4 py-2 border border-transparent rounded-md shad
 </div>
 
 
-{/* Gender Filter */}
+
   <div className="flex-1  mb-6">
     <label className="text-xs font-semibold text-gray-600 mb-1 block">Gender</label>
     <div className="flex flex-wrap gap-2">
@@ -740,7 +1126,6 @@ className="flex items-center px-4 py-2 border border-transparent rounded-md shad
 
   <div className="flex items-center gap-3">
 
-    {/* Male Button */}
     <button
       onClick={() =>
         setFilterGender(filterGender === 'male' ? '' : 'male')
@@ -756,7 +1141,7 @@ className="flex items-center px-4 py-2 border border-transparent rounded-md shad
       ♂ Male
     </button>
 
-    {/* Female Button */}
+    
     <button
       onClick={() =>
         setFilterGender(filterGender === 'female' ? '' : 'female')
@@ -772,7 +1157,6 @@ className="flex items-center px-4 py-2 border border-transparent rounded-md shad
       ♀ Female
     </button>
 
-    {/* Reset Button (Optional Small One) */}
     {filterGender && (
       <button
   onClick={() => {
@@ -790,12 +1174,14 @@ className="flex items-center px-4 py-2 border border-transparent rounded-md shad
     </div>
   </div>
 
-
+  
 
 
 </div>
 
-{/* Excel Table */}
+
+
+
 <div className="overflow-x-auto mt-4">
 <table className="min-w-full border border-gray-300 text-gray-800">
 
@@ -816,7 +1202,9 @@ R{index + 1}
 
 <tbody className="text-sm">
 
-{/* Age */}
+
+
+
 {selectedGroup === 'Daily Check-in' && (
 <tr>
 <td className="border px-4 py-2 font-medium">Age</td>
@@ -829,7 +1217,7 @@ R{index + 1}
 
 </tr>
 )}
-{/* Class */}
+
 {selectedGroup === 'Daily Check-in' && (
 <tr>
 <td className="border px-4 py-2 font-medium">Class</td>
@@ -843,7 +1231,9 @@ R{index + 1}
 </tr>
 )}
 
-{/* Name */}
+
+
+
 <tr>
 <td className="border px-4 py-2 font-medium">Name</td>
 {classStudents.map(student => (
@@ -853,7 +1243,9 @@ R{index + 1}
 ))}
 </tr>
 
-{/* Gender */}
+
+
+
 <tr>
 <td className="border px-4 py-2 font-medium">Gender</td>
 {classStudents.map(student => (
@@ -863,7 +1255,9 @@ R{index + 1}
 ))}
 </tr>
 
-{/* Questions */}
+
+
+
 {questions
 .filter(q => q.groups.includes(selectedGroup))
 .map((question, qIndex) => (
@@ -871,7 +1265,7 @@ R{index + 1}
 <tr key={question.id}>
 
 <td className="border px-4 py-2 font-medium">
-{qIndex + 1}. {question.text}
+{qIndex + 1}. {question.question}
 </td>
 
 {classStudents.map(student => (
@@ -896,7 +1290,145 @@ R{index + 1}
 
 </div>
 )}
+*/}
+{showResponseSheet && (
+<div className="mt-8 bg-white border border-gray-200 rounded-lg shadow-sm p-4">
 
+    <div className="flex justify-between items-center mb-4">
+        <h4 className="text-sm font-semibold text-gray-700 uppercase">
+            Student Responses — {groups.find(g => g.id === selectedGroup)?.name || selectedGroup}
+        </h4>
+        <button
+            onClick={() => setShowResponseSheet(false)}
+            className="flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-purple-600 hover:bg-purple-700"
+        >
+            ✕ Close
+        </button>
+    </div>
+
+    <div className="flex items-center gap-3 mb-6">
+        <span className="text-xs font-semibold text-gray-600">
+            Filter by Gender:
+        </span>
+        <button
+            onClick={() => setFilterGender(filterGender === 'male' ? '' : 'male')}
+            className={`px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 border
+                ${filterGender === 'male'
+                    ? 'bg-blue-500 text-white border-blue-500'
+                    : 'bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100'}`}
+        >
+            ♂ Male
+        </button>
+        <button
+            onClick={() => setFilterGender(filterGender === 'female' ? '' : 'female')}
+            className={`px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 border
+                ${filterGender === 'female'
+                    ? 'bg-pink-500 text-white border-pink-500'
+                    : 'bg-pink-50 text-pink-700 border-pink-200 hover:bg-pink-100'}`}
+        >
+            ♀ Female
+        </button>
+        {filterGender && (
+            <button
+                onClick={() => setFilterGender('')}
+                className="px-4 py-2 text-sm font-medium text-gray-600 bg-gray-100 rounded-lg border border-gray-200 hover:bg-red-50 hover:text-red-600 hover:border-red-200 transition-all duration-200"
+            >
+                Clear Filter
+            </button>
+        )}
+    </div>
+
+    {responseSheet.length === 0 ? (
+        <p className="text-center text-gray-500 py-8">
+            No responses yet for this group.
+        </p>
+    ) : filteredSheet.length === 0 ? (
+        <p className="text-center text-gray-500 py-8">
+            No {filterGender} students found.
+        </p>
+    ) : (
+        <div className="overflow-x-auto mt-4">
+        <table className="min-w-full border border-gray-300 text-gray-800">
+            <thead className="bg-gray-200 text-sm font-semibold">
+                <tr>
+                    <th className="border px-4 py-2 text-left">Field</th>
+                    {filteredSheet.map((student, index) => (
+                        <th key={student.studentId || index} className="border px-4 py-2">
+                            S{index + 1}
+                        </th>
+                    ))}
+                </tr>
+            </thead>
+            <tbody className="text-sm">
+                <tr>
+                    <td className="border px-4 py-2 font-medium">Name</td>
+                    {filteredSheet.map((student, i) => (
+                        <td key={i} className="border px-4 py-2">
+                            {student.studentName || '-'}
+                        </td>
+                    ))}
+                </tr>
+                <tr>
+                    <td className="border px-4 py-2 font-medium">Class</td>
+                    {filteredSheet.map((student, i) => (
+                        <td key={i} className="border px-4 py-2">
+                            {student.className || '-'}
+                        </td>
+                    ))}
+                </tr>
+                <tr>
+                    <td className="border px-4 py-2 font-medium">Gender</td>
+                    {filteredSheet.map((student, i) => (
+                        <td key={i} className="border px-4 py-2">
+                            {student.gender || '-'}
+                        </td>
+                    ))}
+                </tr>
+                <tr>
+                    <td className="border px-4 py-2 font-medium">Age</td>
+                    {filteredSheet.map((student, i) => (
+                        <td key={i} className="border px-4 py-2">
+                            {student.age || '-'}
+                        </td>
+                    ))}
+                </tr>
+             {questions
+    .filter(q => {
+    if (!q.groups && !q.groupMap) return false
+    if (Array.isArray(q.groups)) return q.groups.map(String).includes(String(selectedGroup))
+    if (typeof q.groupMap === 'string') return q.groupMap.split(',').map(g => g.trim()).includes(String(selectedGroup))
+    return false
+})
+                    .map((question, qIndex) => (
+                    <tr key={question.id}>
+                        <td className="border px-4 py-2 font-medium">
+                            Q{qIndex + 1}. {question.questions || question.question || question.text || ''}
+                        </td>
+                        {filteredSheet.map((student, i) => {
+    const questionText = question.questions || question.question || question.text || ''
+    const ans = student.answers
+        ? (
+            student.answers[questionText] ||
+            Object.entries(student.answers).find(([k]) =>
+                k.toLowerCase().trim() === questionText.toLowerCase().trim()
+            )?.[1] ||
+            '-'
+          )
+        : '-'
+    return (
+        <td key={i} className="border px-4 py-2 text-center">
+            {ans}
+        </td>
+    )
+})}
+                    </tr>
+                ))}
+            </tbody>
+        </table>
+        </div>
+    )}
+</div>
+)}
 
             {/* Create Group Modal */}
             {isGroupModalOpen && (
@@ -972,8 +1504,7 @@ R{index + 1}
             )}
             
 
-
-{/* Activity & Alerts Panel */}
+{/* Activity & Alerts Panel 
 {isDailyCheckinSelected && (
   <div className="mt-12 grid grid-cols-1 lg:grid-cols-2 gap-6">
 
@@ -1048,10 +1579,172 @@ R{index + 1}
         </div>
     </div>
 )}
+*/}
 
-           
+{groups.find(g => g.id === selectedGroup)?.name === 'Daily Check-in' && (
+<div className="mb-10 mt-4 grid grid-cols-1 lg:grid-cols-3 gap-4">
+
+  {/* Recent Activity */}
+  <div className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
+    <div className="flex items-center justify-between mb-3">
+        <h4 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">
+            Recent Activity
+        </h4>
+        <span className="text-xs bg-purple-100 text-purple-700 px-2 py-1 rounded-full font-medium">
+            {selectedFilter === 'ALL' ? 'All Time'
+                : selectedFilter === 'TODAY' ? 'Today'
+                : selectedFilter === 'THIS_WEEK' ? 'This Week'
+                : 'This Month'}
+        </span>
+    </div>
+    <ul className="space-y-2 text-sm text-gray-600">
+      <li className="flex justify-between">
+        <span>Total check-ins</span>
+        <span className="font-semibold text-purple-600">
+            {analytics?.totalResponses ?? totalAllResponses}
+        </span>
+      </li>
+      <li className="flex justify-between">
+        <span>Unique students</span>
+        <span className="font-semibold text-purple-600">
+            {analytics?.uniqueStudents ?? 0}
+        </span>
+      </li>
+      <li className="flex justify-between">
+        <span>Total questions</span>
+        <span className="font-semibold text-purple-600">
+            {questions.length}
+        </span>
+      </li>
+      <li className="flex justify-between">
+        <span>Groups created</span>
+        <span className="font-semibold text-purple-600">
+            {groups.length}
+        </span>
+      </li>
+      {analytics?.emotionBreakdown && (
+        <>
+        <li className="flex justify-between text-green-600 pt-2 border-t border-gray-100">
+            <span>Positive responses</span>
+            <span className="font-semibold">
+                {analytics.emotionBreakdown.positive || 0}
+            </span>
+        </li>
+        <li className="flex justify-between text-yellow-600">
+            <span>Neutral responses</span>
+            <span className="font-semibold">
+                {analytics.emotionBreakdown.neutral || 0}
+            </span>
+        </li>
+        <li className="flex justify-between text-red-600">
+            <span>Negative responses</span>
+            <span className="font-semibold">
+                {analytics.emotionBreakdown.negative || 0}
+            </span>
+        </li>
+        </>
+      )}
+      {lastQuestion && (
+        <li className="pt-2 border-t border-gray-100 text-xs text-gray-500">
+          Latest question: <span className="font-medium text-gray-700">"{lastQuestion.questions || lastQuestion.text || ''}"</span>
+        </li>
+      )}
+    </ul>
+  </div>
+
+  {/* Alerts */}
+  <div className={`border rounded-lg p-4 shadow-sm ${
+      (analytics?.negativeResponses ?? totalNegativeResponses) > 0
+          ? 'bg-red-50 border-red-200'
+          : 'bg-green-50 border-green-200'}`}>
+    <h4 className={`text-sm font-semibold uppercase tracking-wide mb-3 ${
+        (analytics?.negativeResponses ?? totalNegativeResponses) > 0
+            ? 'text-red-700' : 'text-green-700'}`}>
+      Alerts
+    </h4>
+    {(analytics?.negativeResponses ?? totalNegativeResponses) > 0 ? (
+      <div>
+        <p className="text-sm text-red-600 font-medium mb-2">
+          {analytics?.negativeResponses ?? totalNegativeResponses} students need attention
+        </p>
+        <div className="space-y-1 max-h-48 overflow-y-auto">
+          {(analytics?.studentsNeedingAttention || studentResponses.filter(r => r.emotion === 'negative'))
+            .slice(0, 5)
+            .map((s, i) => (
+              <div key={i} className="text-xs bg-white border border-red-100 rounded p-2">
+                <div className="flex justify-between items-start mb-1">
+                    <span className="font-semibold text-gray-800">
+                        {s.studentName || s.studentId}
+                    </span>
+                    <span className="text-gray-400">{s.className}</span>
+                </div>
+                <p className="text-gray-500 text-xs">{s.question || s.questionText}</p>
+                <p className="text-red-500 font-medium mt-1">→ "{s.answer}"</p>
+              </div>
+            ))}
+        </div>
+      </div>
+    ) : (
+      <div className="text-center py-4">
+        <p className="text-2xl mb-1">✅</p>
+        <p className="text-sm text-green-700 font-medium">All students doing well</p>
+        <p className="text-xs text-gray-400 mt-1">
+            {selectedFilter === 'TODAY' ? 'Today' 
+            : selectedFilter === 'THIS_WEEK' ? 'This week'
+            : selectedFilter === 'THIS_MONTH' ? 'This month'
+            : 'All time'}
+        </p>
+      </div>
+    )}
+  </div>
+
+  {/* Group Summary */}
+  <div className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
+    <h4 className="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-3">
+      Groups Overview
+    </h4>
+    <ul className="space-y-2">
+      {groups.map(group => {
+        const count = getGroupQuestions(group.id).length
+        const colors = getColorClasses(group.color)
+        return (
+          <li key={group.id} className="flex justify-between items-center text-sm">
+            <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${colors.bg} ${colors.text}`}>
+              {group.name}
+            </span>
+            <span className="text-gray-500 text-xs">{count} questions</span>
+          </li>
+        )
+      })}
+    </ul>
+  </div>
+
+</div>
+)}
+
+            
+{isResponseModalOpen && selectedResponse && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
+                    <div className="bg-white p-6 rounded-xl w-full max-w-md shadow-xl">
+                        <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                            Response Submitted ✅
+                        </h3>
+                        <p className="text-sm text-gray-600 mb-6">
+                            Your answer:
+                            <span className="font-medium"> {selectedResponse.answer}</span>
+                        </p>
+                        <button
+                            onClick={() => setIsResponseModalOpen(false)}
+                            className="w-full py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700"
+                        >
+                            Close
+                        </button>
+                    </div>
+                </div>
+            )}
 
         </div>
-    
     )
 }
+   
+    
